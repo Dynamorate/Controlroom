@@ -37,8 +37,24 @@ CREATE TABLE IF NOT EXISTS leads (
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_score ON leads(score DESC);
 
--- Enable RLS
+-- RLS: Enable on all tables
 ALTER TABLE intelligence_briefs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Service role full access briefs" ON intelligence_briefs FOR ALL USING (true);
-CREATE POLICY "Service role full access leads" ON leads FOR ALL USING (true);
+
+-- Allow anon (dashboard) to READ all tables
+-- The dashboard uses the public anon key - safe for read-only access
+CREATE POLICY "anon can read briefs" ON intelligence_briefs FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read leads" ON leads FOR SELECT TO anon USING (true);
+
+-- Allow anon to UPDATE leads status (for approve/reject in dashboard)
+CREATE POLICY "anon can update leads" ON leads FOR UPDATE TO anon USING (true);
+
+-- Allow anon to UPDATE post_requests status (for approve/reject)
+-- post_requests table already exists - add policy
+CREATE POLICY "anon can update posts" ON post_requests FOR UPDATE TO anon USING (true);
+CREATE POLICY "anon can read posts" ON post_requests FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read clients" ON clients FOR SELECT TO anon USING (true);
+
+-- Note: INSERT/DELETE on all tables requires service_role key
+-- Only n8n workflows (server-side) use the service_role key
+-- The dashboard (browser) only needs anon key for read + status updates
