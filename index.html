@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KP Control Room</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Epilogue:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--surface:#111113;--surface2:#18181c;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+  --text:#f0ede6;--muted:#6b6860;--accent:#c8f060;
+  --accent-dim:rgba(200,240,96,0.12);--blue:#60c8f0;
+  --blue-dim:rgba(96,200,240,0.1);--warn:#f0a060;
+  --warn-dim:rgba(240,160,96,0.1);--danger:#f06060;
+  --danger-dim:rgba(240,96,96,0.1);
+  --mono:'IBM Plex Mono',monospace;--sans:'Epilogue',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;min-height:100vh}
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;padding:0 24px;gap:16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.logo{font-family:var(--sans);font-weight:900;font-size:15px;letter-spacing:-.02em;color:var(--accent)}
+.logo span{color:var(--muted);font-weight:400}
+.topbar-mid{flex:1;display:flex;align-items:center;gap:8px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(200,240,96,0.4)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(200,240,96,0)}}
+.status-text{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.clock{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.refresh-btn{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;cursor:pointer;transition:all .15s}
+.refresh-btn:hover{border-color:var(--border2);color:var(--text)}
+.sidebar{border-right:1px solid var(--border);background:var(--surface);padding:20px 0;display:flex;flex-direction:column;gap:2px}
+.nav-section{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:12px 20px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 20px;font-size:13px;cursor:pointer;color:var(--muted);transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.nav-item.active{color:var(--text);border-left-color:var(--accent);background:var(--accent-dim)}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge{margin-left:auto;font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:99px;font-weight:500}
+.badge-warn{background:var(--warn);color:#0a0a0a}
+.badge-green{background:var(--accent);color:#0a0a0a}
+.badge-muted{background:rgba(255,255,255,0.08);color:var(--muted)}
+.main{padding:28px;overflow-y:auto;display:flex;flex-direction:column;gap:24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;transition:border-color .2s}
+.stat:hover{border-color:var(--border2)}
+.stat-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.stat-val{font-family:var(--mono);font-size:28px;font-weight:500;line-height:1}
+.stat-val.green{color:var(--accent)}.stat-val.blue{color:var(--blue)}.stat-val.warn{color:var(--warn)}
+.stat-sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:5px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.sec-meta{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.card-head{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:700}
+.card-body{padding:0}
+.queue-item{padding:14px 18px;border-bottom:1px solid var(--border);transition:background .15s}
+.queue-item:last-child{border-bottom:none}
+.queue-item:hover{background:rgba(255,255,255,0.02)}
+.queue-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.queue-type{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em;font-weight:500;flex-shrink:0}
+.type-content{background:var(--accent-dim);color:var(--accent)}
+.type-lead{background:var(--blue-dim);color:var(--blue)}
+.queue-title{font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:10px}
+.queue-preview{font-size:12px;color:var(--muted);line-height:1.6;max-height:60px;overflow:hidden;margin-bottom:12px;white-space:pre-wrap;font-family:var(--mono)}
+.queue-actions{display:flex;gap:8px;align-items:center}
+.btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:5px;cursor:pointer;border:1px solid;transition:all .15s;font-weight:500;text-decoration:none;display:inline-block}
+.btn-approve{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.btn-approve:hover{background:rgba(200,240,96,0.2)}
+.btn-reject{border-color:var(--border2);color:var(--muted);background:transparent}
+.btn-reject:hover{border-color:var(--danger);color:var(--danger)}
+.btn-view{border-color:var(--border);color:var(--muted);background:transparent}
+.btn-view:hover{color:var(--text);border-color:var(--border2)}
+.agent-row{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border)}
+.agent-row:last-child{border-bottom:none}
+.agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-active{background:var(--accent);animation:pulse 2s infinite}
+.dot-idle{background:var(--muted)}
+.dot-waiting{background:var(--warn);animation:pulse 1.5s infinite}
+.agent-name{font-size:13px;font-weight:500;flex:1}
+.agent-task{font-family:var(--mono);font-size:11px;color:var(--muted);flex:2}
+.agent-badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;flex-shrink:0}
+.abadge-active{background:var(--accent-dim);color:var(--accent)}
+.abadge-idle{background:rgba(255,255,255,0.05);color:var(--muted)}
+.abadge-waiting{background:var(--warn-dim);color:var(--warn)}
+.log-item{display:flex;gap:10px;padding:8px 18px;border-bottom:1px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-time{font-family:var(--mono);font-size:11px;color:var(--muted);width:42px;flex-shrink:0;margin-top:2px}
+.log-dot{width:5px;height:5px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.ld-ok{background:var(--accent)}.ld-warn{background:var(--warn)}.ld-info{background:var(--blue)}.ld-err{background:var(--danger)}
+.log-msg{font-family:var(--mono);font-size:12px;line-height:1.5}
+.log-msg .hl{color:var(--blue)}.log-msg .hlg{color:var(--accent)}.log-msg .hlw{color:var(--warn)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.three-col{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:16px}
+.prog-row{margin-bottom:12px}.prog-row:last-child{margin-bottom:0}
+.prog-head{display:flex;justify-content:space-between;margin-bottom:5px;font-family:var(--mono);font-size:11px}
+.prog-label{color:var(--muted)}
+.prog-track{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.tab-bar{display:flex;gap:4px;padding:14px 18px 0;border-bottom:1px solid var(--border)}
+.tab{font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:4px 4px 0 0;cursor:pointer;color:var(--muted);transition:all .15s;border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+.tab.active{color:var(--text);background:var(--surface2);border-color:var(--border);border-bottom-color:var(--surface2)}
+.tab-panel{display:none;padding:14px 18px}.tab-panel.active{display:block}
+.loading{text-align:center;padding:40px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.loading::after{content:'';animation:dots 1.5s infinite}
+@keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;font-family:var(--mono);font-size:12px;z-index:200;transform:translateY(80px);opacity:0;transition:all .25s;max-width:300px}
+.toast.show{transform:none;opacity:1}.toast.success{border-color:var(--accent);color:var(--accent)}.toast.error{border-color:var(--danger);color:var(--danger)}
+.empty{text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:24px;width:560px;max-width:calc(100vw - 48px);max-height:80vh;overflow-y:auto;position:relative}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.modal-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px}
+.modal-caption{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;margin-bottom:16px;max-height:300px;overflow-y:auto}
+.modal-actions{display:flex;gap:8px}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.main>*{animation:fadeIn .3s ease both}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="logo">KP <span>/ Control Room</span></div>
+  <div class="topbar-mid"><div class="live-dot"></div><span class="status-text" id="statusText">Loading...</span></div>
+  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  <div class="clock" id="clock"></div>
+</header>
+<nav class="sidebar">
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="showTab('dashboard',this)"><div class="nav-dot"></div>Dashboard</div>
+  <div class="nav-item" onclick="showTab('intelligence',this)"><div class="nav-dot"></div>Intelligence <span class="badge badge-muted" id="briefCount">—</span></div>
+  <div class="nav-section">Review</div>
+  <div class="nav-item" onclick="showTab('posts',this)"><div class="nav-dot"></div>Posts <span class="badge badge-warn" id="postCount">—</span></div>
+  <div class="nav-item" onclick="showTab('leads',this)"><div class="nav-dot"></div>Leads <span class="badge badge-green" id="leadCount">—</span></div>
+  <div class="nav-section">Agents</div>
+  <div class="nav-item" onclick="showTab('agents',this)"><div class="nav-dot"></div>Status</div>
+  <div class="nav-section">Links</div>
+  <div class="nav-item" onclick="window.open('https://n8n.dynamorate.com','_blank')"><div class="nav-dot"></div>n8n ↗</div>
+  <div class="nav-item" onclick="window.open('https://tzrxdhysymshetxkvcto.supabase.co','_blank')"><div class="nav-dot"></div>Supabase ↗</div>
+</nav>
+<main class="main">
+
+<div id="tab-dashboard">
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Posts to review</div><div class="stat-val warn" id="s-posts">—</div><div class="stat-sub">needs review</div></div>
+    <div class="stat"><div class="stat-label">Leads pending</div><div class="stat-val green" id="s-leads">—</div><div class="stat-sub">scored &amp; ready</div></div>
+    <div class="stat"><div class="stat-label">Published</div><div class="stat-val blue" id="s-published">—</div><div class="stat-sub">this week</div></div>
+    <div class="stat"><div class="stat-label">Intel briefs</div><div class="stat-val" id="s-briefs">—</div><div class="stat-sub">today</div></div>
+  </div>
+  <div class="three-col">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Approval queue</span><span class="sec-meta" id="queueMeta">—</span></div>
+      <div class="card-body" id="approvalQueue"><div class="loading">Loading</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Agent status</span></div>
+      <div class="card-body">
+        <div class="agent-row"><div class="agent-dot dot-active"></div><div class="agent-name">Intelligence</div><div class="agent-task">6:30am daily</div><div class="agent-badge abadge-active">live</div></div>
+        <div class="agent-row"><div class="agent-dot dot-active"></div><div class="agent-name">Content agent</div><div class="agent-task">Monday 7am</div><div class="agent-badge abadge-active">live</div></div>
+        <div class="agent-row"><div class="agent-dot dot-active"></div><div class="agent-name">Approval webhook</div><div class="agent-task">Always on</div><div class="agent-badge abadge-active">live</div></div>
+        <div class="agent-row"><div class="agent-dot dot-active"></div><div class="agent-name">Daily poster</div><div class="agent-task">4pm weekdays</div><div class="agent-badge abadge-active">live</div></div>
+        <div class="agent-row"><div class="agent-dot dot-waiting"></div><div class="agent-name">Lead agent</div><div class="agent-task">Needs Maps key</div><div class="agent-badge abadge-waiting">setup</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">This week</span></div>
+      <div class="card-body" style="padding:16px 18px"><div id="weekProgress"><div class="loading">Loading</div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="card-title">Recent activity</span></div>
+    <div class="card-body" id="activityLog"><div class="loading">Loading</div></div>
+  </div>
+</div>
+
+<div id="tab-posts" style="display:none">
+  <div class="sec-head"><div class="sec-title">Content review queue</div><div class="sec-meta" id="postsMeta">—</div></div>
+  <div class="card"><div class="card-body" id="postsQueue"><div class="loading">Loading</div></div></div>
+</div>
+
+<div id="tab-leads" style="display:none">
+  <div class="sec-head"><div class="sec-title">Lead review queue</div><div class="sec-meta" id="leadsMeta">—</div></div>
+  <div class="card"><div class="card-body" id="leadsQueue"><div class="loading">Loading</div></div></div>
+</div>
+
+<div id="tab-intelligence" style="display:none">
+  <div class="sec-head"><div class="sec-title">Daily intelligence brief</div><div class="sec-meta" id="briefMeta">—</div></div>
+  <div class="card" id="briefsCard">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchBriefTab('social_media_trends',this)">Social</div>
+      <div class="tab" onclick="switchBriefTab('belgium_market_intel',this)">Market</div>
+      <div class="tab" onclick="switchBriefTab('content_strategy',this)">Content</div>
+      <div class="tab" onclick="switchBriefTab('sme_pain_points',this)">Pain points</div>
+    </div>
+    <div id="briefContent"><div class="loading">Loading</div></div>
+  </div>
+</div>
+
+<div id="tab-agents" style="display:none">
+  <div class="sec-head"><div class="sec-title">Workflow registry</div></div>
+  <div class="card">
+    <div class="card-body">
+      <div class="agent-row" style="padding:14px 18px"><div class="agent-dot dot-active"></div><div class="agent-name">1. Daily Intelligence Brief</div><div class="agent-task">Perplexity Sonar ×4 — 6:30am daily</div><a href="https://n8n.dynamorate.com/workflow/CoHWTpkKPQbLJpDa" target="_blank" class="btn btn-view">Open ↗</a></div>
+      <div class="agent-row" style="padding:14px 18px"><div class="agent-dot dot-active"></div><div class="agent-name">2. Content Agent</div><div class="agent-task">Claude + briefs — Monday 7am</div><a href="https://n8n.dynamorate.com/workflow/HSlxWIx93jgb2CVA" target="_blank" class="btn btn-view">Open ↗</a></div>
+      <div class="agent-row" style="padding:14px 18px"><div class="agent-dot dot-active"></div><div class="agent-name">3. Approval Webhook</div><div class="agent-task">POST /kp-approve</div><a href="https://n8n.dynamorate.com/workflow/Xb27TZi3qayi0B0V" target="_blank" class="btn btn-view">Open ↗</a></div>
+      <div class="agent-row" style="padding:14px 18px"><div class="agent-dot dot-active"></div><div class="agent-name">4. Daily Poster</div><div class="agent-task">Approved → Instagram — 4pm weekdays</div><a href="https://n8n.dynamorate.com/workflow/Str8XUcpf9liotNc" target="_blank" class="btn btn-view">Open ↗</a></div>
+      <div class="agent-row" style="padding:14px 18px"><div class="agent-dot dot-waiting"></div><div class="agent-name">5. Lead Agent</div><div class="agent-task">Google Maps — 9am daily (needs API key)</div><a href="https://n8n.dynamorate.com/workflow/GJ0aREUFHI3JkkUh" target="_blank" class="btn btn-view">Open ↗</a></div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div class="modal-overlay" id="postModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('postModal')">×</button>
+    <h3 id="modal-title"></h3>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-caption" id="modal-caption"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tzrxdhysymshetxkvcto.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnhkaHlzeW1zaGV0eGt2Y3RvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDM2NTcwNywiZXhwIjoyMDY1OTQxNzA3fQ.pggjdoN9kPvUUWdA-Cs92fMP-X1qkxp7TN-iMYz9VVs';
+const WEBHOOK_URL = 'https://n8n.dynamorate.com/webhook/kp-approve';
+let allPosts=[], allLeads=[], allBriefs={}, clients={};
+
+function tick(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+' · '+n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tick(); setInterval(tick,1000);
+
+async function sbFetch(path){
+  const r=await fetch(SUPABASE_URL+'/rest/v1/'+path,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+function toast(msg,type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show '+type;
+  setTimeout(()=>el.className='toast',3000);
+}
+
+function showTab(name,el){
+  document.querySelectorAll('[id^="tab-"]').forEach(e=>e.style.display='none');
+  document.getElementById('tab-'+name).style.display='';
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(name==='intelligence') renderBriefs('social_media_trends');
+}
+
+async function doAction(postId,action,btn){
+  btn.disabled=true; btn.textContent=action==='approve'?'Approving…':'Rejecting…';
+  try{
+    const r=await fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:postId,action})});
+    const d=await r.json();
+    if(d.success){ toast(action==='approve'?'✓ Approved — publishes at 4pm':'✗ Rejected',action==='approve'?'success':'error'); await loadAll(); }
+    else throw new Error();
+  }catch(e){
+    const status=action==='approve'?'approved':'rejected';
+    await fetch(SUPABASE_URL+'/rest/v1/post_requests?id=eq.'+postId,{method:'PATCH',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({status})});
+    toast(action==='approve'?'✓ Approved':'✗ Rejected',action==='approve'?'success':'error');
+    await loadAll();
+  }
+}
+
+function openPost(post){
+  document.getElementById('modal-title').textContent=(clients[post.client_id]?.company_name||'Post')+' — '+(post.scheduled_date||'TBD');
+  document.getElementById('modal-meta').textContent='Status: '+post.status+' · '+(post.client_idea||'');
+  document.getElementById('modal-caption').textContent=post.generated_instagram||post.generated_linkedin||'';
+  document.getElementById('modal-actions').innerHTML=post.status==='needs_review'?
+    '<button class="btn btn-approve" onclick="doAction(''+post.id+'','approve',this)">Approve</button><button class="btn btn-reject" onclick="doAction(''+post.id+'','reject',this)">Reject</button>':
+    '<span style="font-family:var(--mono);font-size:12px;color:var(--muted)">'+post.status+'</span>';
+  document.getElementById('postModal').classList.add('open');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function renderQueue(posts){
+  const q=posts.filter(p=>p.status==='needs_review');
+  document.getElementById('queueMeta').textContent=q.length+' pending';
+  if(!q.length){document.getElementById('approvalQueue').innerHTML='<div class="empty">Queue is clear</div>';return;}
+  document.getElementById('approvalQueue').innerHTML=q.slice(0,5).map(p=>{
+    const cn=clients[p.client_id]?.company_name||'Unknown';
+    const pr=(p.generated_instagram||'').slice(0,120)+'…';
+    return '<div class="queue-item"><div class="queue-top"><span class="queue-type type-content">Content</span><span class="queue-title">'+cn+' — '+(p.scheduled_date||'TBD')+'</span></div><div class="queue-meta">'+(p.client_idea||'')+'</div><div class="queue-preview">'+pr+'</div><div class="queue-actions"><button class="btn btn-approve" onclick="doAction(''+p.id+'','approve',this)">Approve</button><button class="btn btn-reject" onclick="doAction(''+p.id+'','reject',this)">Reject</button><button class="btn btn-view" onclick="openPost('+JSON.stringify(p).replace(/"/g,'&quot;').replace(/'/g,"&#39;")+')">View</button></div></div>';
+  }).join('');
+}
+
+function renderPostsTab(posts){
+  document.getElementById('postsMeta').textContent=posts.length+' total';
+  if(!posts.length){document.getElementById('postsQueue').innerHTML='<div class="empty">No posts yet — content agent runs Monday 7am</div>';return;}
+  const colors={needs_review:'var(--warn)',approved:'var(--accent)',published:'var(--blue)',rejected:'var(--danger)'};
+  document.getElementById('postsQueue').innerHTML=posts.map(p=>{
+    const cn=clients[p.client_id]?.company_name||'Unknown';
+    return '<div class="queue-item"><div class="queue-top"><span class="queue-type type-content">Content</span><span class="queue-title">'+cn+' — '+(p.scheduled_date||'TBD')+'</span><span style="font-family:var(--mono);font-size:11px;color:'+(colors[p.status]||'var(--muted)')+';margin-left:auto">'+p.status+'</span></div><div class="queue-meta">'+(p.client_idea||'')+'</div><div class="queue-actions">'+(p.status==='needs_review'?'<button class="btn btn-approve" onclick="doAction(''+p.id+'','approve',this)">Approve</button><button class="btn btn-reject" onclick="doAction(''+p.id+'','reject',this)">Reject</button>':'')+'<button class="btn btn-view" onclick="openPost('+JSON.stringify(p).replace(/"/g,'&quot;').replace(/'/g,"&#39;")+')">View</button></div></div>';
+  }).join('');
+}
+
+function renderLeadsTab(leads){
+  document.getElementById('leadsMeta').textContent=leads.length+' leads';
+  if(!leads.length){document.getElementById('leadsQueue').innerHTML='<div class="empty">No leads yet — add Google Maps API key to activate</div>';return;}
+  document.getElementById('leadsQueue').innerHTML=leads.map(l=>'<div class="queue-item"><div class="queue-top"><span class="queue-type type-lead">Lead</span><span class="queue-title">'+l.business_name+'</span><span style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-left:auto">'+l.score+'/100</span></div><div class="queue-meta">'+(l.business_type||'')+' · '+(l.address||'')+'</div><div class="queue-preview">'+(l.score_reasons||'')+'</div><div class="queue-actions"><button class="btn btn-approve" onclick="updateLead(''+l.id+'','contacted',this)">Contacted</button><button class="btn btn-reject" onclick="updateLead(''+l.id+'','rejected',this)">Reject</button>'+(l.website?'<a href="'+l.website+'" target="_blank" class="btn btn-view">Website ↗</a>':'')+'</div></div>').join('');
+}
+
+async function updateLead(id,status,btn){
+  btn.disabled=true;
+  await fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+id,{method:'PATCH',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({status})});
+  toast('Lead: '+status); await loadAll();
+}
+
+function renderBriefs(cat){
+  const data=allBriefs[cat];
+  if(!data?.length){document.getElementById('briefContent').innerHTML='<div class="empty">No brief yet — runs 6:30am daily</div>';return;}
+  const b=data[0];
+  const lines=(b.summary||'').split('\n').filter(l=>l.trim());
+  document.getElementById('briefContent').innerHTML='<div style="padding:16px 18px"><div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:12px">'+b.date+' · '+(b.model_used||'sonar')+'</div>'+lines.map(l=>'<div style="display:flex;gap:10px;margin-bottom:10px"><span style="color:var(--accent);flex-shrink:0">·</span><span style="font-size:13px;line-height:1.6">'+l.replace(/^[•·\-\*]\s*/,'')+'</span></div>').join('')+'</div>';
+}
+
+function switchBriefTab(cat,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); renderBriefs(cat);
+}
+
+function renderWeekProgress(posts){
+  const approved=posts.filter(p=>p.status==='approved').length;
+  const published=posts.filter(p=>p.status==='published').length;
+  const pending=posts.filter(p=>p.status==='needs_review').length;
+  const total=posts.length||1;
+  document.getElementById('weekProgress').innerHTML=
+    '<div class="prog-row"><div class="prog-head"><span class="prog-label">Generated</span><span class="prog-val">'+(posts.length)+'</span></div><div class="prog-track"><div class="prog-fill" style="width:'+(Math.min(100,posts.length/9*100))+'%;background:var(--muted)"></div></div></div>'+
+    '<div class="prog-row"><div class="prog-head"><span class="prog-label">Awaiting review</span><span class="prog-val" style="color:var(--warn)">'+pending+'</span></div><div class="prog-track"><div class="prog-fill" style="width:'+(pending/total*100)+'%;background:var(--warn)"></div></div></div>'+
+    '<div class="prog-row"><div class="prog-head"><span class="prog-label">Approved</span><span class="prog-val" style="color:var(--accent)">'+approved+'</span></div><div class="prog-track"><div class="prog-fill" style="width:'+(approved/total*100)+'%;background:var(--accent)"></div></div></div>'+
+    '<div class="prog-row"><div class="prog-head"><span class="prog-label">Published</span><span class="prog-val" style="color:var(--blue)">'+published+'</span></div><div class="prog-track"><div class="prog-fill" style="width:'+(published/total*100)+'%;background:var(--blue)"></div></div></div>';
+}
+
+function renderActivity(posts){
+  if(!posts.length){document.getElementById('activityLog').innerHTML='<div class="empty">No activity yet</div>';return;}
+  const recent=[...posts].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
+  const dotClass={published:'ld-ok',approved:'ld-ok',rejected:'ld-err',needs_review:'ld-warn'};
+  document.getElementById('activityLog').innerHTML=recent.map(p=>{
+    const cn=clients[p.client_id]?.company_name||'Unknown';
+    const time=new Date(p.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="log-item"><div class="log-time">'+time+'</div><div class="log-dot '+(dotClass[p.status]||'ld-info')+'"></div><div class="log-msg">Post for <span class="hl">'+cn+'</span> — <span class="hlg">'+p.status+'</span>'+(p.scheduled_date?' · '+p.scheduled_date:'')+'</div></div>';
+  }).join('');
+}
+
+async function loadAll(){
+  document.getElementById('statusText').textContent='Syncing…';
+  try{
+    const clientData=await sbFetch('clients?select=id,company_name,is_active');
+    clientData.forEach(c=>clients[c.id]=c);
+    allPosts=await sbFetch('post_requests?select=*&order=created_at.desc&limit=50');
+    try{allLeads=await sbFetch('leads?select=*&status=eq.pending&order=score.desc&limit=20');}catch{allLeads=[];}
+    try{
+      const briefs=await sbFetch('intelligence_briefs?select=*&order=created_at.desc&limit=20');
+      allBriefs={};
+      briefs.forEach(b=>{if(!allBriefs[b.category])allBriefs[b.category]=[];allBriefs[b.category].push(b);});
+    }catch{allBriefs={};}
+    const toReview=allPosts.filter(p=>p.status==='needs_review').length;
+    const published=allPosts.filter(p=>p.status==='published').length;
+    const briefCount=Object.keys(allBriefs).length;
+    document.getElementById('s-posts').textContent=toReview;
+    document.getElementById('s-leads').textContent=allLeads.length;
+    document.getElementById('s-published').textContent=published;
+    document.getElementById('s-briefs').textContent=briefCount;
+    document.getElementById('postCount').textContent=toReview||'0';
+    document.getElementById('leadCount').textContent=allLeads.length||'0';
+    document.getElementById('briefCount').textContent=briefCount||'0';
+    renderQueue(allPosts); renderPostsTab(allPosts); renderLeadsTab(allLeads);
+    renderWeekProgress(allPosts); renderActivity(allPosts);
+    document.getElementById('statusText').textContent=toReview+' items to review · '+allLeads.length+' leads · auto-refresh 60s';
+  }catch(e){
+    document.getElementById('statusText').textContent='Error: '+e.message;
+  }
+}
+
+loadAll(); setInterval(loadAll,60000);
+document.getElementById('postModal').addEventListener('click',function(e){if(e.target===this)closeModal('postModal');});
+</script>
+</body>
+</html>
